@@ -1,5 +1,6 @@
 package org.transitclock.gtfs_rt_exporter.service;
 
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,11 +30,13 @@ public class VehicleServiceImpl implements VehicleService {
 	Logger logger=LogManager.getLogger(VehicleService.class);
 	@Autowired
 	VehicleCustomPositionReader _reader;
+	@Autowired
+	NewShapeEventReader _readerNewShape;
 	@Autowired 
 	GtfsRealtimeExporterImpl _exporter;
 	Long currentTimeStamp;
 	Long initTimeStamp;
-	private List<FeedEntity> entities = new ArrayList<FeedEntity>();
+
 	
 	private List<NewShapeEvent> newShapesEvent =new ArrayList<NewShapeEvent>();
 	//To keep in memory detours
@@ -43,13 +46,7 @@ public class VehicleServiceImpl implements VehicleService {
 	 */
 	private ConcurrentHashMap<String, CustomVehiclePosition> positions=new ConcurrentHashMap<String, CustomVehiclePosition>();
 
-	public void addEntity(FeedEntity entity) {
-		entities.add(entity);
-	}
-
-	public List<FeedEntity> getEntities() {
-		return entities;
-	}
+	
 
 	@Override
 	public Builder processPosition(CustomVehiclePosition position) {
@@ -94,10 +91,14 @@ public class VehicleServiceImpl implements VehicleService {
 	public void processNewInformation()
 	{
 		logger.info("Running schedule");
+		try {
 		long timeStep=30000;
-
+		List<FeedEntity> entities = new ArrayList<FeedEntity>();
 		//Get positions to update
-		List<CustomVehiclePosition> positionList=_reader.getCustomPostions(timeStep);
+		List<CustomVehiclePosition> positionList;
+	
+			positionList = _reader.getCustomPostions(timeStep);
+		
 
 		entities.clear();
 		for(CustomVehiclePosition position: positionList)
@@ -113,10 +114,28 @@ public class VehicleServiceImpl implements VehicleService {
 			if(feedEntityBuilder!=null)
 				entities.add(feedEntityBuilder.build());
 		}
-		_exporter.handleFullUpdate(entities);
+		_exporter.handleFullUpdate("vehicle",entities);
 		
+		List<NewShapeEvent> listOfNewShapes=_readerNewShape.getNewShapeEvents(positionList.get(0).getGpsDate());
 		
+		entities.clear();
+		for(NewShapeEvent event:listOfNewShapes)
+		{
+			Builder feedEntityBuilder=processNewShapeEvent(event);
+			if(feedEntityBuilder!=null)
+				entities.add(feedEntityBuilder.build());
+			
+		}
+		_exporter.handleFullUpdate("newShape",entities);
 		
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+	}
+	private Builder processNewShapeEvent(NewShapeEvent event) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 	
 	

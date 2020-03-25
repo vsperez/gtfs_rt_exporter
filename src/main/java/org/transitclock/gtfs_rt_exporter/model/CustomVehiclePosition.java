@@ -123,4 +123,11 @@ public class CustomVehiclePosition {
 		return this.heading;
 	}
 
+	public static CustomVehiclePosition fromString(String line) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	
+
 }

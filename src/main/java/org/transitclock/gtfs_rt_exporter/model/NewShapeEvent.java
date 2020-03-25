@@ -1,6 +1,8 @@
 package org.transitclock.gtfs_rt_exporter.model;
 
-import java.sql.Date;
+import java.util.Date;
+
+import org.transitclock.gtfs_rt_exporter.service.MultiDatePattern;
 
 public class NewShapeEvent {
 	
@@ -31,5 +33,17 @@ public class NewShapeEvent {
 	}
 	public void setKmlFile(String kmlFile) {
 		this.kmlFile = kmlFile;
+	}
+	public static NewShapeEvent fromString(String line) throws Exception {
+		//Separator
+		String[] values=line.split(",|\\;");
+		if(values.length!=4)
+			throw new Exception("NewShapeEvent must have 4 colums. Is the file limiter , or ;?");
+		NewShapeEvent event=new NewShapeEvent();
+		event.initDateTime=MultiDatePattern.parseDate(values[0]);
+		event.endDateTime=MultiDatePattern.parseDate(values[1]);
+		event.tripId=values[2];
+		event.kmlFile=values[3];
+		return event;
 	}
 }

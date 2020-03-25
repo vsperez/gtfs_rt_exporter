@@ -18,6 +18,8 @@ package org.transitclock.gtfs_rt_exporter.service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.stereotype.Service;
@@ -27,7 +29,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.transit.realtime.GtfsRealtime.FeedEntity;
 import com.google.transit.realtime.GtfsRealtime.FeedHeader;
 import com.google.transit.realtime.GtfsRealtime.FeedHeader.Incrementality;
-
 
 
 import com.google.transit.realtime.GtfsRealtime.FeedMessage;
@@ -46,138 +47,147 @@ class GtfsRealtimeExporterImpl  {
   
 	
 	
-  public static final java.lang.String VERSION = "2.0";
-  private FeedHeader _header;
-  private Map<String, FeedEntity> _feedEntities;
+	 public static final java.lang.String VERSION = "2.0";
+	  private FeedHeader _header;
+	  //Map by agencyId
+	  private Map<String,Map<String, FeedEntity>> _feedEntities;
 
-  private FeedMessage _cachedFeed;
-  private int _cacheExpireSecs=0;
-
-
-  
+	  private ConcurrentMap<String,FeedMessage> _cachedFeed;
+	  private int _cacheExpireSecs=0;
 
 
-  GtfsRealtimeExporterImpl() {
-	  _feedEntities=new HashMap<>();
-	  _cachedFeed =null;
-  }
-  GtfsRealtimeExporterImpl(int cacheExpireSecs) {
-	  _feedEntities=new HashMap<>();
-	   this._cacheExpireSecs=cacheExpireSecs;
-	   _cachedFeed =null;
-  }
+	  
 
-  public void add(int cacheExpireSecs) {
-	
-	  synchronized(_feedEntities)
+
+	  GtfsRealtimeExporterImpl() {
+		  _feedEntities=new HashMap<>();
+		  _cachedFeed =new  ConcurrentHashMap<String, FeedMessage>();
+	  }
+	  GtfsRealtimeExporterImpl(int cacheExpireSecs) {
+		  _feedEntities=new HashMap<>();
+		   this._cacheExpireSecs=cacheExpireSecs;
+		   _cachedFeed =new  ConcurrentHashMap<String, FeedMessage>();
+	  }
+	  public void add(String agencyId)
 	  {
-		  Map<String, FeedEntity> _feedEntitiesInt = _feedEntities;
-		  if(_feedEntitiesInt!=null)
-			  return;
-	    if (cacheExpireSecs > 0) {
-	    	
-	    		_feedEntitiesInt = CacheBuilder.newBuilder()
-	              .expireAfterWrite(cacheExpireSecs, TimeUnit.SECONDS)
-	              .<String, FeedEntity>build().asMap();
-	    		
-	    		_feedEntities= _feedEntitiesInt;
-	    }
-	    else {
-	    	_feedEntitiesInt = new HashMap<String, FeedEntity>();
-	    	_feedEntities= _feedEntitiesInt;
-	    }
-	}
-  }
-
-  /****
-   * {@link GtfsRealtimeSink} Interface
-   ****/
-
-  
-  /*public synchronized void setFeedHeaderDefaults(FeedHeader header) {
-    _header = header;
-    _cachedFeed = null;
-  }*/
-
- 
-  public synchronized void handleFullUpdate(List<FeedEntity> entities) {
-	  synchronized (_feedEntities) {
-
-		  Map<String,FeedEntity> _feedEntitiesInt =  _feedEntities;
-		  if(_feedEntitiesInt==null)
+		  this.add(agencyId,_cacheExpireSecs);
+	  }
+	  public void add(String agencyId,int cacheExpireSecs) {
+		
+		  synchronized(_feedEntities)
 		  {
-			  this.add(_cacheExpireSecs);
-			  _feedEntitiesInt =  _feedEntities;
-		  }
-		  _cachedFeed=null;
-		  _feedEntitiesInt.clear();
-		  for (FeedEntity entity : entities) {
-			  _feedEntitiesInt.put(entity.getId(), entity);
-		  }
-		  _feedEntities=_feedEntitiesInt ;
+			  Map<String, FeedEntity> _feedEntitiesInt = _feedEntities.get(agencyId);
+			  if(_feedEntitiesInt!=null)
+				  return;
+		    if (cacheExpireSecs > 0) {
+		    	
+		    		_feedEntitiesInt = CacheBuilder.newBuilder()
+		              .expireAfterWrite(cacheExpireSecs, TimeUnit.SECONDS)
+		              .<String, FeedEntity>build().asMap();
+		    		
+		    		_feedEntities.put(agencyId, _feedEntitiesInt);
+		    }
+		    else {
+		    	_feedEntitiesInt = new HashMap<String, FeedEntity>();
+		      _feedEntities.put(agencyId, _feedEntitiesInt);
+		    }
+		}
 	  }
 
-  }
+	  /****
+	   * {@link GtfsRealtimeSink} Interface
+	   ****/
 
-//  @Override
-//  public synchronized void handleIncrementalUpdate(
-//      GtfsRealtimeIncrementalUpdate update) {
-//    _cachedFeed = null;
-//
-//    for (FeedEntity toAdd : update.getUpdatedEntities()) {
-//      _feedEntities.put(toAdd.getId(), toAdd);
-//    }
-//    for (String toRemove : update.getDeletedEntities()) {
-//      _feedEntities.remove(toRemove);
-//    }
-//
-//    FeedMessage.Builder feed = FeedMessage.newBuilder();
-//    feed.setHeader(createIncrementalHeader());
-//    feed.addAllEntity(update.getUpdatedEntities());
-//    for (String toRemove : update.getDeletedEntities()) {
-//      FeedEntity.Builder entity = FeedEntity.newBuilder();
-//      entity.setIsDeleted(true);
-//      entity.setId(toRemove);
-//      feed.addEntity(entity);
-//    }
-//
-//    FeedMessage differentialFeed = feed.build();
-//    for (GtfsRealtimeIncrementalListener listener : _listeners) {
-//      listener.handleFeed(differentialFeed);
-//    }
-//    _incrementalIndex++;
-//  }
-
-  /****
-   * {@link GtfsRealtimeSource} Interface
-   ****/
-
-  public synchronized FeedMessage getFeed() {
 	  
+	  /*public synchronized void setFeedHeaderDefaults(FeedHeader header) {
+	    _header = header;
+	    _cachedFeed = null;
+	  }*/
+
 	 
-    if (_cachedFeed == null) {
-    	
-    	 
-      FeedHeader.Builder header = FeedHeader.newBuilder();
-      if (_header != null) {
-        header.mergeFrom(_header);
-      }
-      header.setIncrementality(Incrementality.FULL_DATASET);
-      header.setTimestamp(System.currentTimeMillis() / 1000);
-      header.setGtfsRealtimeVersion(VERSION);
+	  public synchronized void handleFullUpdate(String agencyId,List<FeedEntity> update) {
+		  synchronized (_feedEntities) {
 
-      synchronized (_feedEntities) {
-     Map<String, FeedEntity> _feedEntitiesInt =  _feedEntities;
-    	  if(_feedEntitiesInt==null)
-    		  return null;
-      FeedMessage.Builder feed = FeedMessage.newBuilder();
-      feed.setHeader(header);
-      feed.addAllEntity(_feedEntitiesInt.values());
-      _cachedFeed=feed.build();
-      }
-    }
-    return _cachedFeed;
-  }
+			  Map<String, FeedEntity> _feedEntitiesInt =  _feedEntities.get(agencyId);
+			  if(_feedEntitiesInt==null)
+			  {
+				  //No existe. agregemoslo
+				  this.add(agencyId,_cacheExpireSecs);
+				  _feedEntitiesInt =  _feedEntities.get(agencyId);
+			  }
+			  _cachedFeed.remove(agencyId);
+			  _feedEntitiesInt.clear();
+			  for (FeedEntity entity : update) {
+				  _feedEntitiesInt.put(entity.getId(), entity);
+			  }
+			  _feedEntities.put(agencyId,_feedEntitiesInt );
+		  }
 
+	  }
+
+	//  @Override
+	//  public synchronized void handleIncrementalUpdate(
+//	      GtfsRealtimeIncrementalUpdate update) {
+//	    _cachedFeed = null;
+	//
+//	    for (FeedEntity toAdd : update.getUpdatedEntities()) {
+//	      _feedEntities.put(toAdd.getId(), toAdd);
+//	    }
+//	    for (String toRemove : update.getDeletedEntities()) {
+//	      _feedEntities.remove(toRemove);
+//	    }
+	//
+//	    FeedMessage.Builder feed = FeedMessage.newBuilder();
+//	    feed.setHeader(createIncrementalHeader());
+//	    feed.addAllEntity(update.getUpdatedEntities());
+//	    for (String toRemove : update.getDeletedEntities()) {
+//	      FeedEntity.Builder entity = FeedEntity.newBuilder();
+//	      entity.setIsDeleted(true);
+//	      entity.setId(toRemove);
+//	      feed.addEntity(entity);
+//	    }
+	//
+//	    FeedMessage differentialFeed = feed.build();
+//	    for (GtfsRealtimeIncrementalListener listener : _listeners) {
+//	      listener.handleFeed(differentialFeed);
+//	    }
+//	    _incrementalIndex++;
+	//  }
+
+	  /****
+	   * {@link GtfsRealtimeSource} Interface
+	   ****/
+
+	  public synchronized FeedMessage getFeed(String type) {
+		  
+		 
+	    if (_cachedFeed.get(type) == null) {
+	    	
+	    	 
+	      FeedHeader.Builder header = FeedHeader.newBuilder();
+	      if (_header != null) {
+	        header.mergeFrom(_header);
+	      }
+	      header.setIncrementality(Incrementality.FULL_DATASET);
+	      header.setTimestamp(System.currentTimeMillis() / 1000);
+	      header.setGtfsRealtimeVersion(VERSION);
+
+	  //    setIncrementalIndex(header, _incrementalIndex - 1);
+	      synchronized (_feedEntities) {
+	    	  Map<String, FeedEntity> _feedEntitiesInt =  _feedEntities.get(type);
+	    	  if(_feedEntitiesInt==null)
+	    		  return null;
+	      FeedMessage.Builder feed = FeedMessage.newBuilder();
+	      feed.setHeader(header);
+	      feed.addAllEntity(_feedEntitiesInt.values());
+	      _cachedFeed.put(type, feed.build());
+	      }
+	    }
+	    return _cachedFeed.get(type);
+	  }
+
+	  
+
+	 
   
 }
