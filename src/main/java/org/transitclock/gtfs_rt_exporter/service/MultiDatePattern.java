@@ -19,6 +19,7 @@ public class MultiDatePattern {
 			knownPatterns.add(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'"));
 			knownPatterns.add(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm.ssZ"));
 			knownPatterns.add(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss"));
+			knownPatterns.add(new SimpleDateFormat("yyyy-MM-dd' 'HH:mm:ss"));
 		}
 
 		for (SimpleDateFormat pattern : knownPatterns) {

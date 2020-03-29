@@ -111,11 +111,13 @@ class GtfsRealtimeExporterImpl  {
 			  Map<String, FeedEntity> _feedEntitiesInt =  _feedEntities.get(agencyId);
 			  if(_feedEntitiesInt==null)
 			  {
+				  System.out.println("Creating feed" +agencyId);
 				  //No existe. agregemoslo
 				  this.add(agencyId,_cacheExpireSecs);
 				  _feedEntitiesInt =  _feedEntities.get(agencyId);
 			  }
 			  _cachedFeed.remove(agencyId);
+			  System.out.println("cache feed clear for" +agencyId);
 			  _feedEntitiesInt.clear();
 			  for (FeedEntity entity : update) {
 				  _feedEntitiesInt.put(entity.getId(), entity);

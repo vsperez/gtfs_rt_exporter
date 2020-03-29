@@ -25,7 +25,6 @@ import org.transitclock.gtfs_rt_exporter.model.NewShapeEvent;
  */
 public class VehicleCustomPositionReaderFileImpl implements VehicleCustomPositionReader {
 	
-	
 	String fileName;
 	public VehicleCustomPositionReaderFileImpl(String file)
 	{
@@ -49,9 +48,10 @@ public class VehicleCustomPositionReaderFileImpl implements VehicleCustomPositio
 		myList=new ArrayList<CustomVehiclePosition>();
 		File file=new File(fileName);    //creates a new file instance  
 		fr=new FileReader(file);   //reads the file  
-		getNextEvents();
+		
 		
 		br=new BufferedReader(fr);  //creates a buffering character input stream
+		getNextEvents();
 		
 	}
 	private void getNextEvents() throws IOException
@@ -89,14 +89,19 @@ public class VehicleCustomPositionReaderFileImpl implements VehicleCustomPositio
 	public synchronized List<CustomVehiclePosition> getCustomPostions(long timeStep) throws IOException {
 		List<CustomVehiclePosition> returnList=new ArrayList<CustomVehiclePosition>();
 		Date searchUntil=new Date(currentDate.getTime()+timeStep);
-
-		for(int i=currentIndex;i<maxLinesInList;i++,currentIndex++)
+		_log.info("Reading from "+currentIndex +" at "+currentDate+ " until "+ searchUntil+ " Total lines "+myList.size());
+		for(int i=currentIndex;i<myList.size();i++)
 		{
 			CustomVehiclePosition currentValue = myList.get(i);
-			if(currentValue.getGpsDate().after(searchUntil))
-				break;
 			returnList.add(currentValue);
+			currentIndex++;
+			if(currentValue.getGpsDate().after(searchUntil))
+			{
+				break;
+			}
+			
 		}
+		_log.info("got "+returnList.size());
 		if(currentIndex==maxLinesInList)
 		{
 			getNextEvents(); 
