@@ -42,7 +42,7 @@ public class KmlParser {
 
 	Geometry geometry;
 	public   KmlParser(String fileName) {
-		String ret = "";
+
 		Kml kml;
 		kml = Kml.unmarshal(new File(fileName));
 
@@ -51,10 +51,10 @@ public class KmlParser {
 		geometry = parse(kml.getFeature());
 		if(name==null)
 			name=fileName;
-		System.out.println("GOT "+this.geometry);
+		
 	}
 	
-	private static Geometry parse(Feature feature) {
+	private  Geometry parse(Feature feature) {
 		if(feature == null) return null;
 		
 		if(feature instanceof Document) {
@@ -62,7 +62,10 @@ public class KmlParser {
 			for(Feature f : featureList)
 				if(f instanceof Folder || f instanceof Placemark)
 				{
-					System.out.println(f.getName());
+					if(f instanceof Placemark && f.getName()!=null)
+					{
+						this.name =f.getName();
+					}
 					return parse(f);
 				}
 		}
@@ -71,19 +74,38 @@ public class KmlParser {
 			for(Feature f : featureList)
 				if(f instanceof Folder || f instanceof Placemark)
 				{
-					System.out.println(f.getName());
+					if(f instanceof Placemark && f.getName()!=null)
+					{
+						this.name =f.getName();
+					}
 					return parse(f);
 				}
 				
 		}
 		else if(feature instanceof Placemark)
+		{
+			System.out.println("GETTING PLACEMARK"+ feature);
+			if(feature.getName()!=null)
+			{
+				this.name =feature.getName();
+			}
+			
+			//ID HAS PRIORITY
+			if(feature.getId()!=null)
+			{
+				this.name =feature.getId();
+			}
 			return parse(((Placemark) feature).getGeometry());
+		}
 		return null;
 	}
 	
-	private static Geometry parse(Geometry geometry) {
+	private  Geometry parse(Geometry geometry) {
 		//if(geometry == null) return new LinkedList<Coordinate>();
-		
+		if(geometry.getId()!=null)
+		{
+			this.name =geometry.getId();
+		}
 		if(geometry instanceof Point)
 			return ((Point) geometry);
 		else if(geometry instanceof LineString)

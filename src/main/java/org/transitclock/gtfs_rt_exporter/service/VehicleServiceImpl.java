@@ -179,19 +179,24 @@ public class VehicleServiceImpl implements VehicleService {
 		Coordinate lastCoordinate=null;
 		if(!(kmlInfo.getGeometry() instanceof LineString))
 			throw new Exception("The shape must be a plolyline (Linestring)");
+		
 		for(Coordinate c: ((LineString)kmlInfo.getGeometry()).getCoordinates())
 		{
 			 com.google.transit.realtime.GtfsRealtime.ShapePoint.Builder pointBuilder = ShapePoint.newBuilder();
+			 pointBuilder.setShapePtSequence(i);
 			 pointBuilder.setShapePtLat((float) c.getLatitude());
 			 pointBuilder.setShapePtLon((float) c.getLongitude());
 			 if(lastCoordinate!=null)
 			 { 
 				 traveledDistance+=getDistance(c.getLatitude(), c.getLongitude(), lastCoordinate.getLatitude(), lastCoordinate.getLongitude());
 			 }
-			
+			 
 			pointBuilder.setShapeDistTraveled((float)traveledDistance);
-			System.out.println("indice "+i);
+			//pointBuilder.setField(com.google.protobuf.Descriptors.FieldDescriptor, value)
+			//System.out.println("indice "+i);
 			shapeBuilder.addShapePoint(pointBuilder);
+			lastCoordinate=c;
+			i++;
 		}
 		entity.setShape(shapeBuilder);
 		entity.setId(kmlInfo.getName());
