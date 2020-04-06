@@ -16,7 +16,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.transitclock.gtfs_rt_exporter.model.CustomVehiclePosition;
-import org.transitclock.gtfs_rt_exporter.model.NewShapeEvent;
+import org.transitclock.gtfs_rt_exporter.model.NewShapeEventByRoute;
 
 /**
  * 

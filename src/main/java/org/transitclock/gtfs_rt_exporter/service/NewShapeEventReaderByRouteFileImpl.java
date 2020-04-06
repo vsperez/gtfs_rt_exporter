@@ -17,7 +17,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.transitclock.gtfs_rt_exporter.model.NewShapeEventByTrip;
+import org.transitclock.gtfs_rt_exporter.model.NewShapeEventByRoute;
 import org.transitclock.gtfs_rt_exporter.model.ShapeEvent;
 
 /**
@@ -25,14 +25,14 @@ import org.transitclock.gtfs_rt_exporter.model.ShapeEvent;
  * @author vperez
  *
  */
-public class NewShapeEventReaderFileImpl implements NewShapeEventReader {
+public class NewShapeEventReaderByRouteFileImpl implements NewShapeEventReader {
 	String fileName;
 	
-	Logger _log=LogManager.getLogger(NewShapeEventReaderFileImpl.class);
+	Logger _log=LogManager.getLogger(NewShapeEventReaderByRouteFileImpl.class);
 
 	List<ShapeEvent> myList;//The file should be small..so to memory
 	
-	public NewShapeEventReaderFileImpl(String file)
+	public NewShapeEventReaderByRouteFileImpl(String file)
 	{
 		if(file==null)
 			file="./newShapeEvent.txt";
@@ -51,7 +51,7 @@ public class NewShapeEventReaderFileImpl implements NewShapeEventReader {
 		{   i++;
 			try
 			{
-				ShapeEvent event=NewShapeEventByTrip.fromString(line);
+				ShapeEvent event=NewShapeEventByRoute.fromString(line);
 				myList.add(event);
 			}
 			catch (Exception e) {

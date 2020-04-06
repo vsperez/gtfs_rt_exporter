@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.transitclock.gtfs_rt_exporter.service.NewShapeEventReader;
+import org.transitclock.gtfs_rt_exporter.service.NewShapeEventReaderByRouteFileImpl;
 import org.transitclock.gtfs_rt_exporter.service.NewShapeEventReaderFileImpl;
 import org.transitclock.gtfs_rt_exporter.service.VehicleCustomPositionReader;
 import org.transitclock.gtfs_rt_exporter.service.VehicleCustomPositionReaderFileImpl;
@@ -43,6 +44,8 @@ public class Starter {
 	String vehiclePositionFile;
 	@Value("${new.shape.event.file}") 
 	String newSahpeEventFile;
+	@Value("${new.shape.event.route.file}") 
+	String newSahpeEventByRouteFile;
 	/*
 	 * Create readers
 	 */
@@ -50,11 +53,15 @@ public class Starter {
 	{
 		return new VehicleCustomPositionReaderFileImpl(vehiclePositionFile);
 	}
+//	@Bean NewShapeEventReader createNewShapeEventReader()
+//	{
+//		return new NewShapeEventReaderFileImpl(newSahpeEventFile);
+//	}
+	
 	@Bean NewShapeEventReader createNewShapeEventReader()
 	{
-		return new NewShapeEventReaderFileImpl(newSahpeEventFile);
+		return new NewShapeEventReaderByRouteFileImpl(newSahpeEventByRouteFile);
 	}
-	
 	public static void main(String[] args) {
 		SpringApplication.run(Starter.class, args);
 	}

@@ -4,7 +4,7 @@ import java.util.Date;
 
 import org.transitclock.gtfs_rt_exporter.service.MultiDatePattern;
 
-public class NewShapeEvent {
+public class NewShapeEventByTrip implements ShapeEvent {
 	
 	Date initDateTime; //UTC==JUST LIKE GPS
 	Date endDateTime; //UTC 
@@ -24,13 +24,14 @@ public class NewShapeEvent {
 	public void setTripTime(String tripTime) {
 		this.tripTime = tripTime;
 	}
-	
+	@Override
 	public Date getInitDateTime() {
 		return initDateTime;
 	}
 	public void setInitDateTime(Date initDateTime) {
 		this.initDateTime = initDateTime;
 	}
+	@Override
 	public Date getEndDateTime() {
 		return endDateTime;
 	}
@@ -49,12 +50,12 @@ public class NewShapeEvent {
 	public void setKmlFile(String kmlFile) {
 		this.kmlFile = kmlFile;
 	}
-	public static NewShapeEvent fromString(String line) throws Exception {
+	public static ShapeEvent fromString(String line) throws Exception {
 		//Separator
 		String[] values=line.split(",|\\;");
 		if(values.length!=6)
 			throw new Exception("NewShapeEvent must have 6 colums. Is the file limiter , or ;?");
-		NewShapeEvent event=new NewShapeEvent();
+		NewShapeEventByTrip event=new NewShapeEventByTrip();
 		event.initDateTime=MultiDatePattern.parseDate(values[0]);
 		event.endDateTime=MultiDatePattern.parseDate(values[1]);
 		event.tripId=values[2];

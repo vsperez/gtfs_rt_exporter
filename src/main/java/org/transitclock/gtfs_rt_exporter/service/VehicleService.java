@@ -1,8 +1,12 @@
 package org.transitclock.gtfs_rt_exporter.service;
 
+import java.util.List;
+import java.util.Map;
+
 import org.transitclock.gtfs_rt_exporter.model.CustomVehiclePosition;
 
 import com.google.transit.realtime.GtfsRealtime.FeedEntity;
+import com.google.transit.realtime.GtfsRealtime.FeedEntity.Builder;
 /**
  * 
  * @author vperez
@@ -15,5 +19,8 @@ public interface VehicleService {
 	 * @param position
 	 * @return
 	 */
-	FeedEntity.Builder  processPosition(CustomVehiclePosition position);
+	//FeedEntity.Builder  processPosition(CustomVehiclePosition position);
+
+	Builder processPosition(CustomVehiclePosition position,
+			Map<String, Map<Integer, List<com.google.transit.realtime.GtfsRealtime.TripDescriptor.Builder>>> mapaByRoutesAndDirection);
 }

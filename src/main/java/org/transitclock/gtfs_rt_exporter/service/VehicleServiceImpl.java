@@ -16,7 +16,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.transitclock.gtfs_rt_exporter.model.CustomVehiclePosition;
 import org.transitclock.gtfs_rt_exporter.model.KmlInfo;
-import org.transitclock.gtfs_rt_exporter.model.NewShapeEvent;
+import org.transitclock.gtfs_rt_exporter.model.NewShapeEventByRoute;
+import org.transitclock.gtfs_rt_exporter.model.NewShapeEventByTrip;
+import org.transitclock.gtfs_rt_exporter.model.ShapeEvent;
 import org.transitclock.gtfs_rt_exporter.util.KmlParser;
 
 import com.google.transit.realtime.GtfsRealtime.FeedEntity;
@@ -53,7 +55,7 @@ public class VehicleServiceImpl implements VehicleService {
 	Map<String,FeedEntity.Builder> geometryMap=new HashMap<String,FeedEntity.Builder>();
 
 	
-	private List<NewShapeEvent> newShapesEvent =new ArrayList<NewShapeEvent>();
+	private List<NewShapeEventByRoute> newShapesEvent =new ArrayList<NewShapeEventByRoute>();
 	//To keep in memory detours
 	private HashMap<String, Geometry> shapeMap=new HashMap<String, Geometry>();
 	/**
@@ -64,7 +66,7 @@ public class VehicleServiceImpl implements VehicleService {
 	
 
 	@Override
-	public Builder processPosition(CustomVehiclePosition position) {
+	public Builder processPosition(CustomVehiclePosition position, Map<String,Map<Integer, List<TripDescriptor.Builder>>> mapaByRoutesAndDirection) {
 
 		FeedEntity.Builder entity = FeedEntity.newBuilder();
 
@@ -92,11 +94,22 @@ public class VehicleServiceImpl implements VehicleService {
 		TripDescriptor.Builder tripDescriptor = TripDescriptor.newBuilder();
 		tripDescriptor.setDirectionId(position.getDirection());//We have to have direction
 		tripDescriptor.setRouteId(position.getRouteId());
+	
+	
 		if(position.getTripId()!=null)
 		{
+			Map<Integer, List<TripDescriptor.Builder>> mapaByDirection = mapaByRoutesAndDirection.get(position.getRouteId());
+			if(mapaByDirection==null)
+				mapaByDirection=new HashMap<Integer, List<TripDescriptor.Builder>>();
+			List<TripDescriptor.Builder> tripList = mapaByDirection.get(position.getDirection());
+			if(tripList==null)
+				tripList=new ArrayList<TripDescriptor.Builder>();
 			tripDescriptor.setTripId(position.getTripId());
 			tripDescriptor.setStartDate(position.getTripDate());
 			tripDescriptor.setStartTime(position.getTripTime());
+			tripList.add(tripDescriptor);
+			mapaByDirection.put(position.getDirection(),tripList);
+			mapaByRoutesAndDirection.put(position.getRouteId(), mapaByDirection);
 		}
 		tripDescriptor.setScheduleRelationship(ScheduleRelationship.SCHEDULED);//ESTA PROGRAMADO
 		vehicle.setTrip(tripDescriptor);
@@ -126,30 +139,51 @@ public class VehicleServiceImpl implements VehicleService {
 
 		}
 		//Generate entities
+		Map<String,Map<Integer, List<TripDescriptor.Builder>>> mapaByRoutesAndDirection=new HashMap<String, Map<Integer,List<TripDescriptor.Builder>>>();
 		for(String key : positions.keySet())
 		{
-			Builder feedEntityBuilder=processPosition(positions.get(key));
+			Builder feedEntityBuilder=processPosition(positions.get(key),mapaByRoutesAndDirection);
 			if(feedEntityBuilder!=null)
 				entities.add(feedEntityBuilder.build());
 		}
 		_exporter.handleFullUpdate("vehicle",entities);
 		if(positionList.size()==0)
 			return;
-		List<NewShapeEvent> listOfNewShapes=_readerNewShape.getNewShapeEvents(positionList.get(0).getGpsDate());
+		List<ShapeEvent> listOfNewShapes=_readerNewShape.getNewShapeEvents(positionList.get(0).getGpsDate());
 		entities.clear();
-		for(NewShapeEvent event:listOfNewShapes)
+		for(ShapeEvent event:listOfNewShapes)
 		{
-			
-				try
+
+			try
+			{
+				Builder feedEntityBuilderShape=processNewShapeEventShape(event);
+				String shapeId=feedEntityBuilderShape.getShapeBuilder().getShapeId();
+				if(event instanceof NewShapeEventByTrip)
 				{
-					Builder feedEntityBuilderShape=processNewShapeEventShape(event);
-					String shapeId=feedEntityBuilderShape.getShapeBuilder().getShapeId();
-					Builder feedEntityBuilder=processNewShapeEventTrip(event,shapeId);
+					Builder feedEntityBuilder=processNewShapeEventTrip((NewShapeEventByTrip)event,shapeId);
 					entities.add(feedEntityBuilder.build());
-					entities.add(feedEntityBuilderShape.build());
+				
 				}
-				catch (Exception e) {
-					logger.error(e.getMessage(),e);
+				else//By Routes
+				{
+					Map<Integer, List<TripDescriptor.Builder>> mapByDirection = mapaByRoutesAndDirection.get(((NewShapeEventByRoute)event).getRouteId());
+					if(mapByDirection!=null)
+					{
+						{
+							List<TripDescriptor.Builder> affectedTrips=mapByDirection.get(((NewShapeEventByRoute)event).getDirection() );
+							if(affectedTrips==null) continue;
+							for(TripDescriptor.Builder trip:affectedTrips)
+							{
+								Builder feedEntityBuilder=processNewShapeEventTrip((NewShapeEventByRoute)event,shapeId,trip);
+								entities.add(feedEntityBuilder.build());
+							}
+						}
+					}						
+				}
+				entities.add(feedEntityBuilderShape.build());
+			}
+			catch (Exception e) {
+				logger.error(e.getMessage(),e);
 				}
 			
 			
@@ -161,7 +195,23 @@ public class VehicleServiceImpl implements VehicleService {
 		}
 		
 	}
-	private Builder processNewShapeEventShape(NewShapeEvent event) throws Exception {
+	private Builder processNewShapeEventTrip(NewShapeEventByRoute event, String shapeId, TripDescriptor.Builder trip) {
+		FeedEntity.Builder entity = FeedEntity.newBuilder();
+		com.google.transit.realtime.GtfsRealtime.TripUpdate.Builder tripUpdate = TripUpdate.newBuilder();
+		com.google.transit.realtime.GtfsRealtime.TripDescriptor.Builder tripDescriptorBuilder = TripDescriptor.newBuilder();
+		tripDescriptorBuilder.setTripId(trip.getTripId());
+		tripDescriptorBuilder.setStartDate(trip.getStartDate());
+		tripDescriptorBuilder.setStartTime(trip.getStartTime());
+		com.google.transit.realtime.GtfsRealtime.TripProperties.Builder propertiesBuidler = TripProperties.newBuilder();
+	
+		propertiesBuidler.setShapeId(shapeId);//TODO
+		tripUpdate.setTripProperties(propertiesBuidler);
+		tripUpdate.setTrip(tripDescriptorBuilder);
+		entity.setTripUpdate(tripUpdate);
+		entity.setId(trip.getTripId()+shapeId);
+		return entity;
+	}
+	private Builder processNewShapeEventShape(ShapeEvent event) throws Exception {
 		FeedEntity.Builder entity = FeedEntity.newBuilder();
 		FeedEntity.Builder builder=geometryMap.get(event.getKmlFile());
 		if(builder!=null)
@@ -203,7 +253,7 @@ public class VehicleServiceImpl implements VehicleService {
 		geometryMap.put(event.getKmlFile(),entity);
 		return entity;
 	}
-	private Builder processNewShapeEventTrip(NewShapeEvent event,String shapeId) {
+	private Builder processNewShapeEventTrip(NewShapeEventByTrip event,String shapeId) {
 		
 		FeedEntity.Builder entity = FeedEntity.newBuilder();
 		com.google.transit.realtime.GtfsRealtime.TripUpdate.Builder tripUpdate = TripUpdate.newBuilder();

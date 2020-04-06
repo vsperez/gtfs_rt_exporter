@@ -4,7 +4,8 @@ import java.util.Date;
 import java.util.List;
 
 import org.transitclock.gtfs_rt_exporter.model.CustomVehiclePosition;
-import org.transitclock.gtfs_rt_exporter.model.NewShapeEvent;
+import org.transitclock.gtfs_rt_exporter.model.NewShapeEventByRoute;
+import org.transitclock.gtfs_rt_exporter.model.ShapeEvent;
 
 public interface NewShapeEventReader {
 
@@ -15,6 +16,6 @@ public interface NewShapeEventReader {
 	 * it is select * from Table where timeStamp beween lastRead and timeStep, where lastRead
 	 * is manage inside the class.
 	 */
-	List<NewShapeEvent> getNewShapeEvents(Date gpsEventTime);
+	List<ShapeEvent> getNewShapeEvents(Date gpsEventTime);
 
 }
